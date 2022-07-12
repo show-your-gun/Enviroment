@@ -1,0 +1,123 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name:  helm-repo
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: helm-repo-data
+  namespace: helm-repo
+  labels:
+    type: local
+spec:
+  storageClassName: manual
+  capacity:
+    storage: 10Gi
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: "/helm/repo"
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: helm-repo-data-claim
+  namespace: helm-repo
+spec:
+  storageClassName: manual
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: helm-repo-deployment
+  namespace: helm-repo
+spec:
+  selector:
+    matchLabels:
+      app: helm-repo-pod
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: helm-repo-pod
+    spec:
+      volumes:
+        - name: helm-repo-storage
+          persistentVolumeClaim:
+            claimName: helm-repo-data-claim
+      containers:
+      - name: helm-repo-pod
+        image: nginx
+        resources:
+          limits:
+            memory: "128Mi"
+            cpu: "0.1"
+        ports:
+        - containerPort: 80
+          name: http
+        volumeMounts:
+          - mountPath: "/usr/share/nginx/html"
+            name: helm-repo-storage
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: helm-repo-service
+  namespace: helm-repo
+spec:
+  selector:
+    app: helm-repo-pod
+  ports:
+  - port: 8080
+    name: http
+    targetPort: 80
+---
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: "letsencrypt-prod"
+  namespace: helm-repo
+spec:
+  acme:
+    email: alexanderdolgosheev@gmail.com
+    server: https://acme-v02.api.letsencrypt.org/directory
+    privateKeySecretRef:
+      name: example-issuer-account-key
+    solvers:
+    - http01:
+        ingress:
+          class: nginx
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: helm-repo-ingress
+  namespace: helm-repo
+  labels:
+    name: helm-repo-ingress
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+spec:
+  tls:
+  - hosts:
+    - helm.paradox-server.ru
+    secretName: helm-paradox-server-tls
+  rules:
+  - host: helm.paradox-server.ru
+    http:
+      paths:
+      - pathType: Prefix
+        path: "/"
+        backend:
+          service:
+            name: helm-repo-service
+            port: 
+              name: http
+  ingressClassName: nginx
