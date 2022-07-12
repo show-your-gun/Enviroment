@@ -1,0 +1,8 @@
+auth:
+  enablePostgresUser: true
+  postgresPassword: "<POSTGRES_PASSWORD>"
+
+primary:
+  persistence:
+    enabled: true
+    existingClaim: "postgresql-data-claim"
