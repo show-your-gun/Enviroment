@@ -1,0 +1,33 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name:  logging
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: seq-data
+  namespace: logging
+  labels:
+    type: local
+spec:
+  storageClassName: manual
+  capacity:
+    storage: 50Gi
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: "/looging/seq"
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: seq-data-claim
+  namespace: logging
+spec:
+  storageClassName: manual
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 50Gi
